@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Compare - Sistema de Comparação</title>
+    <!-- Fontes e bibliotecas -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        /* ===== LAYOUT ORIGINAL DO SMARTCOMPARE (preservado) ===== */
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-light: #f4f7f6;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --sidebar-width: 15%;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            flex-shrink: 0;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h2 {
+            margin: 0;
+            letter-spacing: 3px;
+            font-weight: 300;
+        }
+
+        .header-actions {
+            position: absolute;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .header-actions button {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .header-actions button:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar, .right-column {
+            width: var(--sidebar-width);
+            background-color: #ffffff;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar {
+            border-right: 1px solid #e0e0e0;
+            justify-content: space-between;
+        }
+
+        .right-column {
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto; /* permite rolagem se necessário */
+        }
+
+        .center-area {
+            flex: 1;
+            background-color: var(--bg-light);
+            padding: 20px 30px;
+            overflow-y: auto; 
+            box-sizing: border-box;
+        }
+
+        h4 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+
+        /* Status do Sistema */
+        .firebase-status {
+            display: flex;
+            align-items: center;
+            font-size: 0.75rem;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .connected .status-dot { background-color: var(--success); }
+        .disconnected .status-dot { background-color: var(--error); }
+
+        /* Barra de rolagem personalizada */
+        .center-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .center-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .center-area::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        /* ===== NOVOS ESTILOS (funcionalidades Deepseek) ===== */
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --glass: rgba(255, 255, 255, 0.8);
+            --radius-xl: 24px;
+            --radius-lg: 16px;
+            --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-card: #1e293b;
+                --text-main: #f1f5f9;
+                --text-muted: #94a3b8;
+                --border: #334155;
+                --glass: rgba(30, 41, 59, 0.8);
+            }
+        }
+
+        /* Botões e cards */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: var(--bg-light); }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .glass-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+            transition: transform 0.2s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .store-header {
+            padding: 1rem 1.5rem;
+            background: rgba(99, 102, 241, 0.03);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .store-name-input {
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--text-main);
+            width: 70%;
+            border-bottom: 1px dashed var(--border);
+        }
+        .store-name-input:focus { outline: none; border-bottom-color: var(--primary); }
+
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .modern-table th {
+            text-align: left;
+            padding: 0.5rem 0.4rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modern-table td {
+            padding: 0.3rem 0.4rem;
+            vertical-align: middle;
+        }
+
+        .col-codigo { width: 50px; }
+        .col-nome { min-width: 120px; }
+        .col-qtd { width: 70px; }
+        .col-preco { width: 90px; }
+        .col-total { width: 90px; }
+
+        .input-minimal {
+            width: 100%;
+            padding: 0.3rem 0.3rem;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--bg-light);
+            color: var(--text-main);
+            transition: border 0.2s;
+            font-size: 0.8rem;
+        }
+
+        .input-minimal:focus { border-color: var(--primary); }
+        .input-minimal:read-only {
+            background: color-mix(in srgb, var(--border) 20%, transparent);
+            cursor: default;
+        }
+
+        .grand-total {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .badge-eco {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
+        }
+
+        .saving { animation: pulseSave 1s infinite; }
+        @keyframes pulseSave {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Barra de ferramentas */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            border: 1px solid var(--border);
+        }
+        .toolbar input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            font-weight: 500;
+            color: var(--text-main);
+            padding: 0.4rem;
+            font-size: 0.9rem;
+        }
+        .toolbar input:focus { outline: none; }
+
+        /* Lista de lojas na sidebar */
+        .orcamentos-section h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin: 1rem 0 0.8rem 0;
+        }
+        .lista-lojas-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .loja-item {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.6rem 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-weight: 500;
+            font-size: 0.8rem;
+        }
+        .loja-item:hover {
+            border-color: var(--primary);
+            background: #eef2ff;
+        }
+        .loja-item.ativo {
+            border-left: 4px solid var(--primary);
+            background: #e0e7ff;
+            font-weight: 600;
+        }
+        .remove-loja-icon {
+            color: var(--danger);
+            font-size: 1rem;
+            line-height: 1;
+            opacity: 0.5;
+            transition: 0.1s;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .remove-loja-icon:hover { opacity: 1; }
+
+        /* Regra: exibir apenas a loja ativa na área central */
+        #comparador-grid .glass-card {
+            display: none;
+        }
+        #comparador-grid .glass-card.ativa {
+            display: block;
+        }
+
+        /* Estilos para os cards de relatório na coluna direita */
+        .relatorio-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 1.2rem;
+            box-shadow: var(--shadow-soft);
+        }
+        .relatorio-card h5 {
+            margin: 0 0 0.8rem 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+        .loja-total-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            padding: 0.3rem 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        .loja-total-item:last-child {
+            border-bottom: none;
+        }
+        .destaque {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .ideal-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--success);
+            text-align: center;
+            margin: 0.5rem 0;
+        }
+
+        /* Modal de histórico */
+        #page-historico {
+            display:none; 
+            position:fixed; 
+            inset:0; 
+            background:rgba(0,0,0,0.5); 
+            z-index:100; 
+            align-items:center; 
+            justify-content:center; 
+            backdrop-filter:blur(4px);
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+        }
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        .projeto-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            margin-bottom: 0.8rem;
+        }
+        .projeto-info {
+            flex: 1;
+        }
+        .projeto-info p {
+            margin: 0;
+            font-weight: 600;
+        }
+        .projeto-info span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .projeto-acoes {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-icon {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.3rem;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .btn-icon:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        .btn-excluir { color: var(--danger); }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header>
+        <h2>SMART COMPARE</h2>
+        <div class="header-actions">
+            <button onclick="gerarRelatorioPDF()" title="Gerar relatório PDF">📄</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- SIDEBAR ESQUERDA -->
+        <aside class="sidebar">
+            <div class="menu-content">
+                <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    <button class="btn btn-primary" style="font-size:0.8rem; padding:0.4rem 0.8rem;" onclick="criarNovoComparador()">➕ Novo Projeto</button>
+                    <button class="btn btn-ghost" style="font-size:0.8rem; padding:0.4rem 0.8rem;" onclick="openPage('historico')">
+                        <span style="font-size:1rem;">📋</span> Histórico
+                    </button>
+                </div>
+                <div class="orcamentos-section">
+                    <h3>📋 ORÇAMENTOS</h3>
+                    <div id="lista-lojas-sidebar" class="lista-lojas-sidebar"></div>
+                    <button class="btn btn-ghost" style="width:100%; font-size:0.8rem; padding:0.4rem;" onclick="addLoja()">➕ Adicionar Loja</button>
+                </div>
+            </div>
+            <div id="firebase-indicator" class="firebase-status">
+                <span class="status-dot"></span>
+                <strong id="status-text">Conectando...</strong>
+                <span style="margin-left: auto; font-size:0.65rem;" id="saveStatus"></span>
+            </div>
+        </aside>
+
+        <!-- ÁREA CENTRAL -->
+        <main class="center-area">
+            <div class="toolbar">
+                <span style="font-size:1rem;">📝</span>
+                <input type="text" id="comp-titulo" placeholder="Nome do orçamento...">
+            </div>
+            <div id="comparador-grid"></div>
+        </main>
+
+        <!-- COLUNA DIREITA - RELATÓRIO -->
+        <aside class="right-column">
+            <h4>RELATÓRIO</h4>
+            
+            <!-- Loja mais barata -->
+            <div class="relatorio-card">
+                <h5>🏆 ORÇAMENTO MAIS BARATO</h5>
+                <div id="relatorio-melhor-loja" style="font-weight:700; font-size:1rem;">-</div>
+                <div id="relatorio-melhor-valor" style="font-size:1.2rem; font-weight:800; color:var(--success);">R$ 0,00</div>
+            </div>
+
+            <!-- Lista de todas as lojas com totais -->
+            <div class="relatorio-card">
+                <h5>📊 TODOS OS ORÇAMENTOS</h5>
+                <div id="relatorio-lista-lojas"></div>
+            </div>
+
+            <!-- Orçamento ideal (menor preço por item) -->
+            <div class="relatorio-card">
+                <h5>🛒 ORÇAMENTO IDEAL (menor preço por item)</h5>
+                <div class="ideal-value" id="relatorio-ideal">R$ 0,00</div>
+                <p style="font-size:0.7rem; color:var(--text-muted); text-align:center;">Combinando itens mais baratos de cada loja</p>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- MODAL HISTÓRICO SIMPLIFICADO -->
+<div id="page-historico">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Projetos Salvos</h3>
+            <button onclick="closePage('historico')" style="border:none; background:transparent; cursor:pointer; font-size:1.2rem;">&times;</button>
+        </div>
+        <div class="modal-body" id="historico-lista"></div>
+    </div>
+</div>
+
+<!-- SCRIPT PRINCIPAL -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, query, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBE8Zt1PxDXwIa0BkycQmv_LfBYmNG_vqw",
+        authDomain: "smartcompare-1e08d.firebaseapp.com",
+        projectId: "smartcompare-1e08d",
+        storageBucket: "smartcompare-1e08d.firebasestorage.app",
+        messagingSenderId: "909025385812",
+        appId: "1:909025385812:web:c93ffa2d3882eca81bbcc1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+    const projetosRef = collection(db, "projetos");
+
+    const statusEl = document.getElementById('saveStatus');
+    const statusDot = document.getElementById('firebase-indicator');
+    const statusText = document.getElementById('status-text');
+    statusEl.innerText = "Conectado";
+    statusDot.classList.add('connected');
+    statusText.innerText = "Online";
+
+    window.storeCount = 0;
+    window.historicoComparadores = [];
+    window.currentId = null;
+    window.lojaSelecionadaId = null;
+    window.saveTimer = null;
+
+    // Função para atualizar os relatórios na coluna direita
+    function atualizarRelatorio() {
+        const lojas = [];
+        const itensPorCodigo = {};
+
+        document.querySelectorAll('.glass-card[id^="store_"]').forEach(card => {
+            const nomeLoja = card.querySelector('.store-name-input').value || 'Loja sem nome';
+            const totalStr = card.querySelector('.grand-total').innerText;
+            const total = parseFloat(totalStr.replace(/[^\d,-]/g, '').replace(',', '.')) || 0;
+            lojas.push({ nome: nomeLoja, total, id: card.id });
+
+            card.querySelectorAll('.item-list tr').forEach(row => {
+                const codigo = row.querySelector('.item-codigo').value.trim();
+                const preco = parseFloat(row.querySelector('.item-price').value) || 0;
+                const qtd = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const nomeItem = row.querySelector('.item-name').value.trim() || 'Item';
+                if (codigo !== '' && preco > 0) {
+                    if (!itensPorCodigo[codigo] || preco < itensPorCodigo[codigo].preco) {
+                        itensPorCodigo[codigo] = { preco, qtd, nome: nomeItem };
+                    }
+                }
+            });
+        });
+
+        // Orçamento mais barato
+        if (lojas.length > 0) {
+            const maisBarato = lojas.reduce((min, l) => (l.total < min.total ? l : min), lojas[0]);
+            document.getElementById('relatorio-melhor-loja').innerText = maisBarato.nome;
+            document.getElementById('relatorio-melhor-valor').innerText = maisBarato.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else {
+            document.getElementById('relatorio-melhor-loja').innerText = '-';
+            document.getElementById('relatorio-melhor-valor').innerText = 'R$ 0,00';
+        }
+
+        // Lista de todas as lojas
+        const listaContainer = document.getElementById('relatorio-lista-lojas');
+        if (lojas.length === 0) {
+            listaContainer.innerHTML = '<p style="color:var(--text-muted); font-style:italic;">Nenhuma loja</p>';
+        } else {
+            listaContainer.innerHTML = lojas.map(l => `
+                <div class="loja-total-item">
+                    <span>${l.nome}</span>
+                    <span class="destaque">${l.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
+            `).join('');
+        }
+
+        // Orçamento ideal (menor preço por item)
+        let totalIdeal = 0;
+        Object.values(itensPorCodigo).forEach(item => {
+            totalIdeal += item.preco * item.qtd;
+        });
+        document.getElementById('relatorio-ideal').innerText = totalIdeal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // Modificar recalculateStore para chamar atualizarRelatorio
+    function recalculateStore(card) {
+        let storeTotal = 0;
+        card.querySelectorAll('.item-list tr').forEach(row => {
+            const q = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const p = parseFloat(row.querySelector('.item-price').value) || 0;
+            const total = q * p;
+            row.querySelector('.item-total').innerText = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            storeTotal += total;
+        });
+        card.querySelector('.grand-total').innerText = storeTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        atualizarListaLojasSidebar();
+        atualizarRelatorio(); // <-- atualiza os relatórios da coluna direita
+    }
+
+    // As demais funções (addLoja, addItem, bindEvents, etc.) permanecem inalteradas
+    // (já estão definidas no escopo, mas vamos redefinir para garantir que usam a nova recalculateStore)
+
+    window.addLoja = function() {
+        if (window.storeCount >= 6) return alert("Limite de 6 lojas atingido");
+        window.storeCount++;
+        const id = `store_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const card = document.createElement('div');
+        card.className = 'glass-card';
+        card.id = id;
+        card.innerHTML = `
+            <div class="store-header">
+                <input type="text" placeholder="Nome da Loja" class="store-name-input" value="Loja ${window.storeCount}">
+                <button class="btn btn-ghost" style="padding:0.3rem; color:var(--danger); font-size:0.7rem;" onclick="removeLoja('${id}')">✕ Excluir</button>
+            </div>
+            <div style="padding: 0.8rem 1.2rem;">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th class="col-codigo">Cód.</th>
+                            <th class="col-nome">Item</th>
+                            <th class="col-qtd">Qtd</th>
+                            <th class="col-preco">Unitário</th>
+                            <th class="col-total">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="item-list"></tbody>
+                </table>
+                <div style="display:flex; justify-content:flex-end; align-items:center; margin-top:1rem;">
+                    <div style="text-align:right">
+                        <p style="font-size:0.65rem; color:var(--text-muted)">TOTAL DA LOJA</p>
+                        <p class="grand-total" style="font-weight:700; color:var(--primary); font-size:1.1rem;">R$ 0,00</p>
+                    </div>
+                </div>
+            </div>`;
+        document.getElementById('comparador-grid').appendChild(card);
+        addItem(id);
+        bindEvents(card);
+        atualizarListaLojasSidebar();
+        selecionarLoja(id);
+    };
+
+    function getMaxCodigo(storeId) {
+        const tbody = document.querySelector(`#${storeId} .item-list`);
+        let max = 0;
+        if (tbody) {
+            tbody.querySelectorAll('.item-codigo').forEach(inp => {
+                const val = parseInt(inp.value, 10);
+                if (!isNaN(val) && val > max) max = val;
+            });
+        }
+        return max;
+    }
+
+    window.addItem = function(storeId) {
+        const tbody = document.querySelector(`#${storeId} .item-list`);
+        const proximoCodigo = getMaxCodigo(storeId) + 1;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="input-minimal item-codigo" value="${proximoCodigo}" readonly></td>
+            <td><input type="text" class="input-minimal item-name" placeholder="Ex: Cimento"></td>
+            <td><input type="number" class="input-minimal item-qty" value="1" min="0" step="1"></td>
+            <td><input type="number" class="input-minimal item-price" placeholder="0.00" min="0" step="0.01"></td>
+            <td style="font-weight:600; text-align:right" class="item-total">R$ 0,00</td>
+        `;
+        tbody.appendChild(tr);
+        recalculateStore(document.getElementById(storeId));
+        triggerAutoSave();
+    };
+
+    function bindEvents(card) {
+        card.addEventListener('input', () => {
+            recalculateStore(card);
+            triggerAutoSave();
+        });
+    }
+
+    window.atualizarListaLojasSidebar = function() {
+        const container = document.getElementById('lista-lojas-sidebar');
+        const lojas = document.querySelectorAll('.glass-card[id^="store_"]');
+        let html = '';
+        lojas.forEach(card => {
+            const nome = card.querySelector('.store-name-input').value || 'Loja sem nome';
+            const id = card.id;
+            const ativo = (window.lojaSelecionadaId === id) ? 'ativo' : '';
+            html += `
+                <div class="loja-item ${ativo}" onclick="selecionarLoja('${id}')">
+                    <span>🏬 ${nome}</span>
+                    <span class="remove-loja-icon" onclick="event.stopPropagation(); removerLojaSidebar('${id}')" title="remover loja">✕</span>
+                </div>
+            `;
+        });
+        if (lojas.length === 0) {
+            html = '<div style="padding: 0.5rem; color: var(--text-muted); font-style:italic;">Nenhuma loja</div>';
+        }
+        container.innerHTML = html;
+    };
+
+    window.removerLojaSidebar = function(id) {
+        if (confirm("Remover esta loja?")) {
+            removeLoja(id);
+        }
+    };
+
+    window.selecionarLoja = function(id) {
+        document.querySelectorAll('.glass-card[id^="store_"]').forEach(card => {
+            card.classList.remove('ativa');
+        });
+        const cardSelecionado = document.getElementById(id);
+        if (cardSelecionado) {
+            cardSelecionado.classList.add('ativa');
+            window.lojaSelecionadaId = id;
+        } else {
+            const primeiro = document.querySelector('.glass-card[id^="store_"]');
+            if (primeiro) {
+                primeiro.classList.add('ativa');
+                window.lojaSelecionadaId = primeiro.id;
+            } else {
+                window.lojaSelecionadaId = null;
+            }
+        }
+        atualizarListaLojasSidebar();
+    };
+
+    window.removeLoja = function(id) {
+        const card = document.getElementById(id);
+        if (card) {
+            card.remove();
+            window.storeCount--;
+            if (window.lojaSelecionadaId === id) {
+                const restantes = document.querySelectorAll('.glass-card[id^="store_"]');
+                if (restantes.length > 0) {
+                    selecionarLoja(restantes[0].id);
+                } else {
+                    window.lojaSelecionadaId = null;
+                }
+            }
+            atualizarListaLojasSidebar();
+            atualizarRelatorio(); // atualiza relatório após remover
+            triggerAutoSave();
+        }
+    };
+
+    window.triggerAutoSave = function() {
+        statusEl.innerText = "Digitando...";
+        statusEl.classList.add('saving');
+        clearTimeout(window.saveTimer);
+        window.saveTimer = setTimeout(() => salvarComparador(), 2000);
+    };
+
+    window.salvarComparador = async function() {
+        const titulo = document.getElementById('comp-titulo').value || "Orçamento Sem Nome";
+        const data = [];
+        document.querySelectorAll('.glass-card[id^="store_"]').forEach(card => {
+            const itens = [];
+            card.querySelectorAll('.item-list tr').forEach(row => {
+                itens.push({
+                    c: row.querySelector('.item-codigo').value,
+                    n: row.querySelector('.item-name').value,
+                    q: row.querySelector('.item-qty').value,
+                    p: row.querySelector('.item-price').value
+                });
+            });
+            data.push({ nome: card.querySelector('.store-name-input').value, itens });
+        });
+
+        const projeto = { titulo, data, ts: Date.now() };
+
+        try {
+            if (window.currentId) {
+                const docRef = doc(db, "projetos", window.currentId);
+                await updateDoc(docRef, projeto);
+            } else {
+                const docRef = await addDoc(projetosRef, projeto);
+                window.currentId = docRef.id;
+            }
+            statusEl.innerText = "Salvo no Firebase";
+            statusEl.classList.remove('saving');
+            const snapshot = await getDocs(query(projetosRef, orderBy("ts", "desc")));
+            window.historicoComparadores = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (error) {
+            console.error(error);
+            statusEl.innerText = "Erro no save";
+            statusEl.classList.remove('saving');
+        }
+    };
+
+    async function carregarPrimeiroProjeto() {
+        try {
+            const q = query(projetosRef, orderBy("ts", "desc"), limit(1));
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                const docSnap = snapshot.docs[0];
+                const comp = { id: docSnap.id, ...docSnap.data() };
+                carregarComparador(comp);
+            } else {
+                addLoja();
+            }
+        } catch (e) {
+            console.error(e);
+            addLoja();
+        }
+    }
+
+    window.carregarComparador = function(comp) {
+        window.currentId = comp.id;
+        document.getElementById('comp-titulo').value = comp.titulo;
+        document.getElementById('comparador-grid').innerHTML = '';
+        window.storeCount = 0;
+        window.lojaSelecionadaId = null;
+        comp.data.forEach(loja => {
+            addLoja();
+            const card = document.getElementById('comparador-grid').lastElementChild;
+            card.querySelector('.store-name-input').value = loja.nome;
+            const tbody = card.querySelector('.item-list');
+            tbody.innerHTML = '';
+            loja.itens.forEach(i => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="input-minimal item-codigo" value="${(i.c || '').replace(/"/g, '&quot;')}" readonly></td>
+                    <td><input type="text" class="input-minimal item-name" value="${(i.n || '').replace(/"/g, '&quot;')}"></td>
+                    <td><input type="number" class="input-minimal item-qty" value="${i.q || 0}"></td>
+                    <td><input type="number" class="input-minimal item-price" value="${i.p || 0}"></td>
+                    <td style="font-weight:600; text-align:right" class="item-total">R$ 0,00</td>`;
+                tbody.appendChild(tr);
+            });
+            recalculateStore(card);
+        });
+        const primeira = document.querySelector('.glass-card[id^="store_"]');
+        if(primeira) selecionarLoja(primeira.id);
+        atualizarListaLojasSidebar();
+    };
+
+    // Histórico
+    window.openPage = async function(page) {
+        if (page === 'historico') {
+            document.getElementById('page-historico').style.display = 'flex';
+            await carregarListaHistorico();
+        }
+    };
+
+    async function carregarListaHistorico() {
+        const listaDiv = document.getElementById('historico-lista');
+        listaDiv.innerHTML = '<p style="text-align:center;">Carregando...</p>';
+        try {
+            const snapshot = await getDocs(query(projetosRef, orderBy("ts", "desc")));
+            window.historicoComparadores = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            if (window.historicoComparadores.length === 0) {
+                listaDiv.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Nenhum projeto salvo.</p>';
+                return;
+            }
+            listaDiv.innerHTML = window.historicoComparadores.map(h => `
+                <div class="projeto-item">
+                    <div class="projeto-info">
+                        <p>${h.titulo}</p>
+                        <span>${new Date(h.ts).toLocaleString()}</span>
+                    </div>
+                    <div class="projeto-acoes">
+                        <button class="btn-icon" onclick="carregarDoHistorico('${h.id}')" title="Abrir">📂</button>
+                        <button class="btn-icon btn-excluir" onclick="excluirProjeto('${h.id}')" title="Excluir">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) {
+            listaDiv.innerHTML = '<p style="color:var(--danger); text-align:center;">Erro ao carregar histórico.</p>';
+        }
+    }
+
+    window.excluirProjeto = async function(id) {
+        if (!confirm("Tem certeza que deseja excluir este projeto?")) return;
+        try {
+            await deleteDoc(doc(db, "projetos", id));
+            if (window.currentId === id) {
+                window.currentId = null;
+                document.getElementById('comp-titulo').value = "";
+                document.getElementById('comparador-grid').innerHTML = "";
+                window.storeCount = 0;
+                window.lojaSelecionadaId = null;
+                addLoja();
+                atualizarListaLojasSidebar();
+            }
+            await carregarListaHistorico();
+        } catch (e) {
+            alert("Erro ao excluir projeto");
+            console.error(e);
+        }
+    };
+
+    window.carregarDoHistorico = async function(id) {
+        try {
+            const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+            const docRef = doc(db, "projetos", id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                carregarComparador({ id: docSnap.id, ...docSnap.data() });
+            } else alert("Projeto não encontrado");
+            closePage('historico');
+        } catch (e) {
+            alert("Erro ao carregar");
+        }
+    };
+
+    window.closePage = function(page) { 
+        document.getElementById(`page-${page}`).style.display = 'none'; 
+    };
+
+    window.criarNovoComparador = function() {
+        if(confirm("Limpar tela atual? (Não salvo será perdido)")) {
+            window.currentId = null;
+            document.getElementById('comp-titulo').value = "";
+            document.getElementById('comparador-grid').innerHTML = "";
+            window.storeCount = 0;
+            window.lojaSelecionadaId = null;
+            addLoja();
+            atualizarListaLojasSidebar();
+        }
+    };
+
+    window.gerarRelatorioPDF = function() {
+        alert("Função de relatório PDF será implementada em breve.");
+    };
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarPrimeiroProjeto();
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            const target = e.target;
+            if (!target.classList.contains('item-name') && !target.classList.contains('item-qty') && !target.classList.contains('item-price')) return;
+            e.preventDefault();
+            const linha = target.closest('tr');
+            if (!linha) return;
+            if (target.classList.contains('item-name')) {
+                const qtyInput = linha.querySelector('.item-qty');
+                if (qtyInput) qtyInput.focus();
+            } else if (target.classList.contains('item-qty')) {
+                const priceInput = linha.querySelector('.item-price');
+                if (priceInput) priceInput.focus();
+            } else if (target.classList.contains('item-price')) {
+                const lojaAtiva = document.querySelector('.glass-card.ativa');
+                if (!lojaAtiva) return;
+                addItem(lojaAtiva.id);
+                const novaLinha = lojaAtiva.querySelector('.item-list tr:last-child');
+                if (novaLinha) novaLinha.querySelector('.item-name').focus();
+            }
+        });
+        document.addEventListener('input', e => { if (e.target.classList.contains('store-name-input')) atualizarListaLojasSidebar(); });
+    });
+
+    // Exportar funções
+    window.addLoja = addLoja;
+    window.removeLoja = removeLoja;
+    window.selecionarLoja = selecionarLoja;
+    window.removerLojaSidebar = removerLojaSidebar;
+    window.carregarDoHistorico = carregarDoHistorico;
+    window.criarNovoComparador = criarNovoComparador;
+    window.salvarComparador = salvarComparador;
+    window.openPage = openPage;
+    window.closePage = closePage;
+    window.excluirProjeto = excluirProjeto;
+    window.gerarRelatorioPDF = gerarRelatorioPDF;
+</script>
+</body>
+</html>
